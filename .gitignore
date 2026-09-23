@@ -1,0 +1,20 @@
+# Node / Dependencies
+node_modules/
+package-lock.json
+
+# Temporary scratch and extraction folders
+.tmp/
+**/materials/.tmp/
+**/.tmp/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
