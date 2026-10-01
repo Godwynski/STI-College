@@ -38,6 +38,7 @@ courses/<Subject_Name>/
 
 ### 1. Strict Assignment Compliance (Zero Fluff)
 - **Fulfill the prompt—nothing more, nothing less**: Answer only what is asked by the teacher's instructions.
+- **Maximum Simplicity & Conciseness**: Keep answers as simple as possible, easy to understand, and strictly concise. Avoid dense academic jargon, wordy filler, and repetitive explanations.
 - **NO Self-Grading Rubrics**: The grading rubric in the handout is for the instructor, not the student. NEVER insert self-awarded evaluation matrices (e.g., *"Score: 25/25 Full Points"*, *"Mastery Standard Achieved"*). This makes submissions look artificial and AI-generated.
 - **NO Unsolicited Structural Fluff**: Never add unrequested executive summaries, decorative callouts, or extraneous files unless explicitly mandated by the task handout.
 - **Single Deliverable**: The primary written submission is `answer.md` inside the module folder. Do not generate duplicate deliverable names (e.g., do not keep both `03_Activity_1.md` and `answer.md`).

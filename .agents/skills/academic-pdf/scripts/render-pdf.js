@@ -1,10 +1,25 @@
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { BraveManager } from '../../../../brave-mcp/src/browser.js';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+async function getBraveManagerClass() {
+  const candidatePaths = [
+    path.resolve(__dirname, '../../../../../Browser activity/brave-mcp/src/browser.js'),
+    path.resolve(__dirname, '../../../../brave-mcp/src/browser.js'),
+    'C:/Users/Godwyn/Documents/Projects/Browser activity/brave-mcp/src/browser.js'
+  ];
+
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      const mod = await import(pathToFileURL(p).href);
+      return mod.BraveManager;
+    }
+  }
+  throw new Error('Could not locate brave-mcp/src/browser.js in candidate locations.');
+}
 
 const CSS_TEMPLATE_PATH = path.join(__dirname, '../templates/academic-style.css');
 
@@ -220,33 +235,38 @@ export async function generateAcademicPdf({ inputPath, outputPath, htmlContent =
   }
 
   // Connect via BraveManager
+  const BraveManager = await getBraveManagerClass();
   const manager = new BraveManager();
-  const page = await manager.getAgentPage();
+  const page = await manager.newTab('about:blank');
 
-  // Load the rendered HTML into page
-  await page.setContent(finalHtml, { waitUntil: 'load' });
-  await page.waitForTimeout(300);
+  try {
+    // Load the rendered HTML into page
+    await page.setContent(finalHtml, { waitUntil: 'load' });
+    await page.waitForTimeout(300);
 
-  // Capture print-ready PDF using CDP Page.printToPDF
-  const cdp = await page.context().newCDPSession(page);
-  const result = await cdp.send('Page.printToPDF', {
-    printBackground: true,
-    paperWidth: 8.5,
-    paperHeight: 11,
-    marginTop: 0.8,
-    marginBottom: 0.8,
-    marginLeft: 0.8,
-    marginRight: 0.8,
-    preferCSSPageSize: true
-  });
+    // Capture print-ready PDF using CDP Page.printToPDF
+    const cdp = await page.context().newCDPSession(page);
+    const result = await cdp.send('Page.printToPDF', {
+      printBackground: true,
+      paperWidth: 8.5,
+      paperHeight: 11,
+      marginTop: 0.8,
+      marginBottom: 0.8,
+      marginLeft: 0.8,
+      marginRight: 0.8,
+      preferCSSPageSize: true
+    });
 
-  const pdfBuffer = Buffer.from(result.data, 'base64');
-  const targetPath = path.resolve(outputPath);
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.writeFileSync(targetPath, pdfBuffer);
+    const pdfBuffer = Buffer.from(result.data, 'base64');
+    const targetPath = path.resolve(outputPath);
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.writeFileSync(targetPath, pdfBuffer);
 
-  console.log(`✅ Academic PDF created: ${targetPath} (${(pdfBuffer.length / 1024).toFixed(1)} KB)`);
-  return targetPath;
+    console.log(`✅ Academic PDF created: ${targetPath} (${(pdfBuffer.length / 1024).toFixed(1)} KB)`);
+    return targetPath;
+  } finally {
+    await page.close().catch(() => {});
+  }
 }
 
 // CLI Execution Support

@@ -1,11 +1,23 @@
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { BraveManager } from '../../../../brave-mcp/src/browser.js';
-import { PATHS, ensureArtifactDirs } from '../../../../brave-mcp/src/paths.js';
-import { telemetry } from '../../../../brave-mcp/src/telemetry.js';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-ensureArtifactDirs();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const WORKSPACE_ROOT = path.resolve(__dirname, '../../../../');
+
+// Locate brave-mcp dynamically
+const candidateMcpDirs = [
+  path.resolve(WORKSPACE_ROOT, 'brave-mcp'),
+  path.resolve(WORKSPACE_ROOT, '../Browser activity/brave-mcp')
+];
+const BRAVE_MCP_DIR = candidateMcpDirs.find(d => fs.existsSync(d)) || candidateMcpDirs[0];
+
+const browserModuleUrl = pathToFileURL(path.join(BRAVE_MCP_DIR, 'src', 'browser.js')).href;
+const telemetryModuleUrl = pathToFileURL(path.join(BRAVE_MCP_DIR, 'src', 'telemetry.js')).href;
+
+const { BraveManager } = await import(browserModuleUrl);
+const { telemetry } = await import(telemetryModuleUrl);
 
 export const ENROLLED_SUBJECTS = [
   { name: 'Computer Graphics Programming', classId: '5713354' },
@@ -19,7 +31,8 @@ export const ENROLLED_SUBJECTS = [
 
 async function downloadSubjectHandouts(page, subject) {
   const courseFolder = subject.name.replace(/\s+/g, '_');
-  const subjectDir = path.join(PATHS.root, 'courses', courseFolder, 'handouts');
+  const subjectDir = path.join(WORKSPACE_ROOT, 'courses', courseFolder, 'handouts');
+  const syllabiDir = path.join(WORKSPACE_ROOT, 'courses', courseFolder, 'syllabi');
   if (!fs.existsSync(subjectDir)) {
     fs.mkdirSync(subjectDir, { recursive: true });
   }
@@ -52,33 +65,34 @@ async function downloadSubjectHandouts(page, subject) {
   }).catch(() => {});
   await page.waitForTimeout(800);
 
-  // Collect handout section links
-  const handoutSections = await page.evaluate(() => {
+  // Collect handout and syllabus section links
+  const sections = await page.evaluate(() => {
     const map = new Map();
     const links = Array.from(document.querySelectorAll('a[href*="section_id="]'));
     links.forEach(a => {
       const text = (a.innerText || '').trim();
       const lower = text.toLowerCase();
       const isHandout = lower.includes('handout') || lower.includes('module handout');
+      const isSyllabus = lower.includes('syllabus') || lower.includes('course outline');
       const isActivity = lower.includes('activity') || lower.includes('laboratory') || 
                          lower.includes('exercise') || lower.includes('quiz') || 
                          lower.includes('exam') || lower.includes('task performance');
 
-      if (isHandout && !isActivity) {
-        if (!map.has(a.href)) map.set(a.href, text);
+      if ((isHandout || isSyllabus) && !isActivity) {
+        if (!map.has(a.href)) map.set(a.href, { href: a.href, text, isSyllabus });
       }
     });
-    return Array.from(map.entries()).map(([href, text]) => ({ href, text }));
+    return Array.from(map.values());
   });
 
-  console.log(`   🎯 Found ${handoutSections.length} Handout section(s).`);
+  console.log(`   🎯 Found ${sections.length} Handout/Syllabus section(s).`);
   const downloadedFiles = [];
 
-  for (let sIdx = 0; sIdx < handoutSections.length; sIdx++) {
-    const section = handoutSections[sIdx];
+  for (let sIdx = 0; sIdx < sections.length; sIdx++) {
+    const section = sections[sIdx];
     try {
       await page.goto(section.href, { waitUntil: 'domcontentloaded', timeout: 15000 });
-      await page.waitForTimeout(600);
+      await page.waitForTimeout(800);
 
       const fileLinks = await page.evaluate(() => {
         return Array.from(document.querySelectorAll('a'))
@@ -94,11 +108,19 @@ async function downloadSubjectHandouts(page, subject) {
           .map(a => ({ text: (a.innerText || '').trim(), href: a.href }));
       });
 
+      const targetDir = section.isSyllabus ? syllabiDir : subjectDir;
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
       for (const item of fileLinks) {
-        let fileName = item.text || path.basename(new URL(item.href).pathname);
+        let rawName = item.text || path.basename(new URL(item.href).pathname);
+        let fileName = path.basename(rawName).trim();
+        // Remove duplicate number tags like (35) before extension
+        fileName = fileName.replace(/\([0-9]+\)(?=\.[a-zA-Z0-9]+$)/, '');
         if (!fileName.includes('.')) fileName += '.pdf';
         fileName = fileName.replace(/[/\\?%*:|"<>]/g, '_').trim();
-        const filePath = path.join(subjectDir, fileName);
+        const filePath = path.join(targetDir, fileName);
 
         if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
           const sizeKb = (fs.statSync(filePath).size / 1024).toFixed(1);
@@ -162,42 +184,49 @@ export async function runElmsCli(customArgs = null) {
   console.log("==========================================================");
 
   const brave = new BraveManager();
-  console.log("🪟 Connecting to dedicated Agent Window...");
+  console.log("🪟 Connecting to dedicated background page in Brave...");
   console.log("🛡️  Parallel Co-Browsing Active: Your personal tabs & main window will remain undisturbed.\n");
-  const page = await brave.getAgentPage({ autoCreate: true });
+  const browser = await brave.ensureConnected();
+  const ctx = browser.contexts()[0];
+  const page = await ctx.newPage();
 
-  let targetList = ENROLLED_SUBJECTS;
-  if (subjectArg) {
-    const matched = ENROLLED_SUBJECTS.filter(s => s.name.toLowerCase().includes(subjectArg.toLowerCase()));
-    if (matched.length === 0) {
-      console.error(`❌ No subject matched query "${subjectArg}". Use --list to view enrolled subjects.`);
-      process.exit(1);
+  try {
+    let targetList = ENROLLED_SUBJECTS;
+    if (subjectArg) {
+      const matched = ENROLLED_SUBJECTS.filter(s => s.name.toLowerCase().includes(subjectArg.toLowerCase()));
+      if (matched.length === 0) {
+        console.error(`❌ No subject matched query "${subjectArg}". Use --list to view enrolled subjects.`);
+        process.exit(1);
+      }
+      targetList = matched;
     }
-    targetList = matched;
+
+    let totalCount = 0;
+    telemetry.startTask('elms-handouts', 'Sync Course Handouts', subjectArg || 'All Subjects', targetList.length);
+
+    for (let i = 0; i < targetList.length; i++) {
+      const subject = targetList[i];
+      telemetry.step(i + 1, targetList.length, `Downloading handouts: ${subject.name}`);
+      const files = await downloadSubjectHandouts(page, subject);
+      totalCount += files.length;
+    }
+
+    telemetry.complete(`Processed ${targetList.length} subject(s) — Total: ${totalCount} handouts`);
+
+    console.log("\n==========================================================");
+    console.log(`🎉 Finished processing ${targetList.length} subject(s). Total handouts processed: ${totalCount}`);
+    console.log("==========================================================");
+  } finally {
+    await page.close().catch(() => {});
   }
-
-  let totalCount = 0;
-  telemetry.startTask('elms-handouts', 'Sync Course Handouts', subjectArg || 'All Subjects', targetList.length);
-
-  for (let i = 0; i < targetList.length; i++) {
-    const subject = targetList[i];
-    telemetry.step(i + 1, targetList.length, `Downloading handouts: ${subject.name}`);
-    const files = await downloadSubjectHandouts(page, subject);
-    totalCount += files.length;
-  }
-
-  telemetry.complete(`Processed ${targetList.length} subject(s) — Total: ${totalCount} handouts`);
-
-  console.log("\n==========================================================");
-  console.log(`🎉 Finished processing ${targetList.length} subject(s). Total handouts processed: ${totalCount}`);
-  console.log("==========================================================");
 }
 
 // Auto-run if executed directly as entrypoint
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  runElmsCli().catch(err => {
+  runElmsCli().then(() => {
+    process.exit(0);
+  }).catch(err => {
     console.error("❌ ELMS CLI Error:", err);
     process.exit(1);
   });
 }
-

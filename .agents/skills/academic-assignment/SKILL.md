@@ -1,21 +1,21 @@
 ---
 name: academic-assignment
-description: Autonomous protocol for completing academic coursework, assignments, lab exercises, and activities. Strictly adheres ONLY to what is requested in the task instructions, with zero extraneous additions, no unsolicited files, and no self-awarded grading rubrics.
+description: Autonomous protocol for completing academic coursework, assignments, lab exercises, and activities. Answers are always as simple as possible, easy to understand, and concise, strictly following task instructions with zero extraneous additions, no unsolicited files, and no self-awarded grading rubrics.
 ---
 
 # Academic Assignment Protocol
 
-This skill governs how academic coursework, laboratory exercises, and assignment tasks are solved. It enforces strict compliance with the task prompt to produce authentic, human-grade, clutter-free student deliverables.
+This skill governs how academic coursework, laboratory exercises, and assignment tasks are solved. It enforces strict compliance with the task prompt to produce simple, concise, easy-to-understand, and clutter-free student deliverables.
 
 ---
 
-## 🎯 The Core Directive: Strict Instruction Compliance
+## 🎯 The Core Directive: Strict Instruction Compliance & Maximum Simplicity
 
-> **Rule 1: Only do what is being asked by the instruction of the task file.**  
-> **Rule 2: Do NOT add things that are not needed or unrequested.**  
-> **Rule 3: Strictly comply to what is being asked.**
+> **Rule 1: Strictly comply to what is being asked by the instruction of the task file.**  
+> **Rule 2: Keep answers as simple as possible, easy to understand, and concise.**  
+> **Rule 3: Only do what is being asked—do NOT add unrequested or unnecessary content.**
 
-When completing any assignment, your job is to fulfill the instructor's exact instructions—**nothing more, nothing less**.
+When completing any assignment, your job is to fulfill the instructor's exact instructions—**nothing more, nothing less**—delivering direct, plain-language answers without fluff or over-complication.
 
 ---
 
@@ -36,6 +36,19 @@ When completing any assignment, your job is to fulfill the instructor's exact in
    - Do **NOT** create unrequested Python plotting scripts (`generate_deliverables.py`), ASCII charts, data distribution matrices, timeline graphics, demonstration videos (`.mp4`), draw.io files, or zip packages unless the task handout explicitly demands them.
    - Do **NOT** duplicate deliverables (e.g., having both `03_Activity_1.md` and `answer.md` with identical content). The single deliverable is `answer.md`.
 
+4. **NO Overcomplicated Language or Jargon Bloat**:
+   - Do **NOT** use convoluted academic phrasing, run-on sentences, or decorative buzzwords to artificially pad an answer.
+   - Never use ten words when five will convey the concept cleanly and accurately.
+
+---
+
+## ✍️ Writing Standard: Simple, Understandable, & Concise
+
+- **Maximum Simplicity:** Write in plain, direct language that anyone can easily follow. Break down technical concepts without using unnecessary jargon.
+- **Easy to Understand:** Focus on clarity. Keep explanations logical and organized, using brief bullet points or short paragraphs where appropriate.
+- **Strictly Concise:** Eliminate preamble, filler phrases, and repetitive explanations. Get straight to the answer.
+- **Strict Prompt Scope:** Never exceed what the prompt asks for. If the question asks for 2 reasons, give exactly 2 clear reasons. If a brief explanation is requested, do not write multiple lengthy paragraphs.
+
 ---
 
 ## 📋 Standard Execution Workflow
@@ -48,10 +61,12 @@ When completing any assignment, your job is to fulfill the instructor's exact in
    - What is the required deliverable format (Markdown, Word `.docx`, PDF `.pdf`, Python `.py`)?
    - Are there specific constraints, length limits, or file naming conventions?
 
-### Step 2: Formulate Direct, High-Quality Answers
+### Step 2: Formulate Simple, Concise, and Direct Answers
 - Address each question or item directly, matching the exact numbers and prompt phrasing used by the teacher.
-- Provide strong, clear, technically justified answers that directly satisfy the criteria, without rambling or artificial padding.
-- Use clean formatting: bold key terms where helpful for readability, and format lists cleanly.
+- Keep the language **as simple and easy to understand as possible** while maintaining technical accuracy.
+- Keep answers **strictly concise**: avoid rambling, wordiness, or artificial padding.
+- Strictly fulfill the instruction criteria—do not guess or provide unsolicited extra topics.
+- Use clean formatting: bold key terms where helpful for quick scanning, and format lists cleanly.
 
 ### Step 3: Produce the Primary Deliverable (`answer.md`)
 Save the submission to `answer.md` in the assignment's module directory:
