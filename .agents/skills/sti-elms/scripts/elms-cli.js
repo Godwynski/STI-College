@@ -9,6 +9,7 @@ const WORKSPACE_ROOT = path.resolve(__dirname, '../../../../');
 // Locate brave-mcp dynamically
 const candidateMcpDirs = [
   path.resolve(WORKSPACE_ROOT, 'brave-mcp'),
+  path.resolve(WORKSPACE_ROOT, '../Browser remastered/brave-mcp'),
   path.resolve(WORKSPACE_ROOT, '../Browser activity/brave-mcp')
 ];
 const BRAVE_MCP_DIR = candidateMcpDirs.find(d => fs.existsSync(d)) || candidateMcpDirs[0];
@@ -40,7 +41,7 @@ async function downloadSubjectHandouts(page, subject) {
   telemetry.log(`Navigating to ${subject.name} (Class ID: ${subject.classId})`, 'info');
   console.log(`\n📚 [${subject.name}] (Class ID: ${subject.classId})`);
   const classUrl = `https://elms.sti.edu/student_class/show/${subject.classId}`;
-  await page.goto(classUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.goto(classUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
   await page.waitForTimeout(800);
 
   const firstLessonUrl = await page.evaluate(() => {
@@ -53,7 +54,13 @@ async function downloadSubjectHandouts(page, subject) {
     return [];
   }
 
-  await page.goto(firstLessonUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  try {
+    await page.goto(firstLessonUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
+  } catch (e) {
+    // Retry once on timeout
+    await page.waitForTimeout(1000);
+    await page.goto(firstLessonUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
+  }
   await page.waitForTimeout(1000);
 
   // Expand all modules
@@ -108,11 +115,6 @@ async function downloadSubjectHandouts(page, subject) {
           .map(a => ({ text: (a.innerText || '').trim(), href: a.href }));
       });
 
-      const targetDir = section.isSyllabus ? syllabiDir : subjectDir;
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-
       for (const item of fileLinks) {
         let rawName = item.text || path.basename(new URL(item.href).pathname);
         let fileName = path.basename(rawName).trim();
@@ -120,12 +122,36 @@ async function downloadSubjectHandouts(page, subject) {
         fileName = fileName.replace(/\([0-9]+\)(?=\.[a-zA-Z0-9]+$)/, '');
         if (!fileName.includes('.')) fileName += '.pdf';
         fileName = fileName.replace(/[/\\?%*:|"<>]/g, '_').trim();
+
+        let targetDir = syllabiDir;
+        if (!section.isSyllabus) {
+          let quarter = 'general';
+          const match = fileName.match(/^0?(\d+)/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num <= 2) quarter = 'prelim';
+            else if (num <= 4) quarter = 'midterm';
+            else if (num === 5) quarter = 'pre-finals';
+            else quarter = 'finals';
+          }
+          targetDir = path.join(subjectDir, quarter);
+        }
+
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+
         const filePath = path.join(targetDir, fileName);
+        const legacyPath = path.join(subjectDir, fileName);
+
+        if (fs.existsSync(legacyPath) && !fs.existsSync(filePath)) {
+          fs.renameSync(legacyPath, filePath);
+        }
 
         if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
           const sizeKb = (fs.statSync(filePath).size / 1024).toFixed(1);
           telemetry.log(`Cached: ${fileName} (${sizeKb} KB)`, 'info');
-          console.log(`     ⏩ Existing: ${fileName} (${sizeKb} KB)`);
+          console.log(`     ⏩ Existing: ${fileName} (${sizeKb} KB) [${path.basename(targetDir)}]`);
           downloadedFiles.push({ file: fileName, status: 'cached', sizeKb });
           continue;
         }

@@ -7,6 +7,9 @@ const __dirname = path.dirname(__filename);
 
 async function getBraveManagerClass() {
   const candidatePaths = [
+    path.resolve(__dirname, '../../../../../Browser remastered/brave-mcp/src/browser.js'),
+    path.resolve(__dirname, '../../../../Browser remastered/brave-mcp/src/browser.js'),
+    'C:/Users/Godwyn/Documents/Projects/Browser remastered/brave-mcp/src/browser.js',
     path.resolve(__dirname, '../../../../../Browser activity/brave-mcp/src/browser.js'),
     path.resolve(__dirname, '../../../../brave-mcp/src/browser.js'),
     'C:/Users/Godwyn/Documents/Projects/Browser activity/brave-mcp/src/browser.js'
